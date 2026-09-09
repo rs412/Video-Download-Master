@@ -1,5 +1,12 @@
 # Video Download Master for YouTube
 
+<details>
+<summary>📺 海报预览</summary>
+
+![poster](assets/poster-4k.png)
+
+</details>
+
 一个纯前端的 Chrome / Edge (Manifest V3) 浏览器扩展：在 YouTube 视频页直接解析可用格式并下载，支持高清视频自动合并音轨、字幕导出、封面下载等，全程无需 ffmpeg 或任何外部服务。
 
 > 仓库短名 `video-download-master`；扩展名中的 "for YouTube" 表示本工具仅支持 YouTube 页面，不支持其他网站。
