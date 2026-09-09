@@ -82,7 +82,7 @@ googlevideo 直链由 YouTube 签发，有效期较短（数小时）。过期�
 │   └── subs.js            # 字幕解析（srt/vtt/lrc/txt）
 ├── offscreen/             # 后台合并工人页面
 ├── vendor/                # 第三方库（meriyah / astring / yt 求解器 / mediabunny）
-├── icons/ + gen_icons.py  # 图标（由脚本生成，可复现）
+└── icons/ + gen_icons.py  # 图标（由脚本生成，可复现）
 ```
 
 ## 📄 许可证
