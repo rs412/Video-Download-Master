@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">&#9654;</span>
+      <h1>YouTube 下载器</h1>
+    </div>
+    <button id="retry" type="button" title="重新解析当前视频">&#8635;</button>
+  </header>
+
+  <div id="err" title="点击复制诊断信息"></div>
+
+  <section id="meta" class="card hidden">
+    <img id="thumb" alt="" />
+    <div class="meta-txt">
+      <div id="title"></div>
+      <div id="sub"></div>
+    </div>
+  </section>
+
+  <div id="quick" class="hidden">
+    <button class="qbtn primary" data-quick="best">最佳画质</button>
+    <button class="qbtn" data-quick="audio">最佳音频</button>
+    <button class="qbtn" data-quick="fast">720p 快速</button>
+  </div>
+
+  <div id="srcbar" class="hidden"></div>
+
+  <nav id="tabs" class="hidden">
+    <button class="tab active" data-tab="all">全部</button>
+    <button class="tab" data-tab="progressive">合并</button>
+    <button class="tab" data-tab="video">纯视频</button>
+    <button class="tab" data-tab="audio">纯音频</button>
+  </nav>
+
+  <div id="filters" class="hidden"></div>
+
+  <div id="list"></div>
+
+  <section id="extra" class="hidden">
+    <details open>
+      <summary>字幕 · 封面 · 元数据</summary>
+      <div class="panel">
+        <div class="fld">
+          <label for="subLang">字幕语言</label>
+          <select id="subLang"></select>
+        </div>
+        <div class="fld">
+          <label for="subFmt">字幕格式</label>
+          <select id="subFmt">
+            <option value="srt">SRT</option>
+            <option value="vtt">VTT</option>
+            <option value="lrc">LRC</option>
+            <option value="txt">TXT</option>
+          </select>
+        </div>
+        <div class="btns">
+          <button id="dlSub" class="sbtn">下载字幕</button>
+          <button id="dlThumb" class="sbtn">下载封面</button>
+          <button id="dlJson" class="sbtn">导出 metadata.json</button>
+          <button id="dlChapters" class="sbtn">章节</button>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>设置</summary>
+      <div class="panel">
+        <div class="fld">
+          <label for="tpl">文件名模板</label>
+          <input id="tpl" type="text" spellcheck="false" />
+        </div>
+        <div class="hint">
+          可用变量：<code>{title}</code> <code>{author}</code> <code>{id}</code>
+          <code>{quality}</code> <code>{itag}</code> <code>{ext}</code> <code>{date}</code>
+        </div>
+        <div class="fld">
+          <label for="clientSel">数据源</label>
+          <select id="clientSel"></select>
+        </div>
+        <div class="hint" id="clientHint"></div>
+        <label class="chk"><input id="askPath" type="checkbox" /> 每次询问保存位置</label>
+      </div>
+    </details>
+  </section>
+
+  <div id="progress" class="hidden"></div>
+
+  <footer>
+    <small>仅用于你拥有版权或已获授权的内容</small>
+  </footer>
+
+  <script src="lib/parse.js"></script>
+  <script src="lib/subs.js"></script>
+  <script src="lib/clients.js"></script>
+  <script src="lib/hls.js"></script>
+  <script src="lib/merge.js"></script>
+  <script type="module" src="vendor/mediabunny-global.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
