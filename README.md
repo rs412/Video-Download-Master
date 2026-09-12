@@ -61,6 +61,15 @@
 
 ---
 
+## 许可证
+
+- 本扩展**自身源代码**以 **MIT 许可证**开源，详见 [LICENSE](./LICENSE)。
+- 发布包内 `vendor/` 目录**捆绑的第三方开源组件**（astring / meriyah / mediabunny /
+  yt.solver.core.js）各自保留其许可证（MIT / ISC / MPL-2.0 / Unlicense），完整署名与许可证
+  正文见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
+
+---
+
 ## 已知限制
 
 - 受站点反爬 / 鉴权策略影响，部分加密或签名分片可能无法下载（见上表）。
