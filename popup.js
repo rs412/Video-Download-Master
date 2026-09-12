@@ -839,9 +839,6 @@ chrome.runtime.onMessage.addListener((msg) => {
   // 爱奇艺后台任务：进度/结果单独落到绿卡状态行（弹窗开着时可见）
   const iq = document.getElementById("iqStatus");
   function setIq(t, cls) { if (iq) { iq.textContent = t; iq.className = "iq-status" + (cls ? " " + cls : ""); } }
-  // 腾讯视频后台任务：进度/结果落到蓝卡状态行
-  const tq = document.getElementById("tqStatus");
-  function setTq(t, cls) { if (tq) { tq.textContent = t; tq.className = "tq-status" + (cls ? " " + cls : ""); } }
   if (msg.type === "MERGE_PROGRESS") {
     const txt = "后台下载 " + Math.round((msg.pct || 0) * 100) + "%：" + (msg.stage || "") +
       "（可关闭本弹窗和页面）";
@@ -1325,18 +1322,11 @@ async function loadGeneric(tab) {
   }
   iqEl.classList.add("hidden");
 
-  // 腾讯视频：已确认无法稳定下载，直接提示不支持
+  // 腾讯视频：已确认无法稳定下载，仅保留卡片内一句提示
   const tqEl = document.getElementById("tencent");
   if (isTencent()) {
     tqEl.classList.remove("hidden");
     state.media = [];
-    const bar = $("srcbar");
-    bar.classList.remove("hidden");
-    bar.className = "srcbar";
-    bar.innerHTML = '<span class="src-dot"></span>腾讯视频 · 暂不支持下载';
-    $list.innerHTML =
-      '<div class="empty">腾讯视频暂不支持下载<br />' +
-      "<small>其分片带动态签名且会快速过期，无法通过嗅探直链稳定获取完整视频</small></div>";
     return;
   }
   tqEl.classList.add("hidden");
