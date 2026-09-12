@@ -1519,7 +1519,7 @@ async function downloadMedia(m) {
       await armMediaRefererRule(m); // 第一次：保证 m3u8 清单本身能 fetch
       show("HLS：解析清单…（请保持弹窗打开）");
       const info = await YTHls.resolveBestVariant(m.url);
-      // 第二次：把分片真实 host 一并加上（爱奇艺等 CDN 经常跨 host）
+      // 第二次：把分片/key 真实 host 一并加上（爱奇艺/优酷等 CDN 经常跨 host）
       await armMediaRefererRule(m, info.hosts);
       let blob;
       try {
@@ -1527,6 +1527,10 @@ async function downloadMedia(m) {
           show("HLS 下载：" + Math.round((d / t) * 100) + "%（" + d + "/" + t + " 段）—— 请保持弹窗打开");
         });
       } catch (e) {
+        // 加密 HLS 主世界回退也无法解密，直接报错避免用户拿到密文片段
+        if (info.keyInfo) {
+          throw new Error("加密 HLS 下载失败：" + ((e && e.message) || e));
+        }
         // 扩展页 fetch 被 CDN 拒绝 → 回退页面主世界（HLS 的 init + segments 同样适用）
         console.warn("[vdm] HLS 扩展页下载失败，回退页面主世界：", e && e.message);
         blob = await mainWorldDownloadTrack(
