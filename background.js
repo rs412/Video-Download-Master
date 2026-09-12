@@ -52,9 +52,20 @@ function clearRefererRule() {
   }).catch(() => {});
 }
 
-// B 站专用：bilivideo / akamaized CDN
-async function setBiliRefererRule() {
-  await setRefererRule(["bilivideo\\.com", "akamaized\\.net"], "https://www.bilibili.com/");
+// B 站专用：bilivideo / akamaized / acgvideo 等 CDN
+// 注意：B 站 DASH 分片实际域名经常轮换（bilivideo.com / akamaized.net /
+// upos-*.acgvideo.com / *.bilivideo.cn 等），只写死 2 个会漏掉其它域名 → 该域名
+// 不被 DNR 规则匹配、Referer 没注入 → bilivideo 返回 403（「视频流第 X/X 段下载失败 HTTP 403」）。
+// 故默认覆盖全部已知 B 站 CDN 域，并额外接受 popup 从真实分片 URL 动态提取的域名。
+async function setBiliRefererRule(extraHosts) {
+  const hosts = ["bilivideo\\.com", "akamaized\\.net", "acgvideo\\.com", "bilivideo\\.cn"];
+  if (Array.isArray(extraHosts)) {
+    for (let i = 0; i < extraHosts.length; i++) {
+      const h = String(extraHosts[i] || "").trim();
+      if (h && hosts.indexOf(h) < 0) hosts.push(h);
+    }
+  }
+  await setRefererRule(hosts, "https://www.bilibili.com/");
 }
 
 async function ensureOffscreen() {
@@ -241,7 +252,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ ok: false, error: "已有后台任务进行中，请等它完成" });
           return;
         }
-        await setBiliRefererRule();
+        await setBiliRefererRule(msg.hosts || []);
         await ensureOffscreen();
         clearTimeout(_closeTimer);
         _mergeBusy = true;

@@ -1518,6 +1518,34 @@ async function downloadBliDurl(durls, base, show) {
   }
 }
 
+// 从 B 站 dash rep（init + segments）提取 CDN 基础域名，供 DNR Referer 规则使用。
+// rep.init: null | {url, range}；rep.segments: [url | {url, range}]（形态②为单完整文件 URL）
+// 只取注册域（末两段，如 acgvideo.com / bilivideo.cn），配合 setRefererRule 的
+// 子域通配正则即可覆盖 upos-*.acgvideo.com 等任意子域。
+function collectRepHosts(video, audio) {
+  const out = [];
+  const push = function (rep) {
+    if (!rep) return;
+    const urls = [];
+    if (rep.init && rep.init.url) urls.push(rep.init.url);
+    (rep.segments || []).forEach(function (s) {
+      urls.push(typeof s === "string" ? s : (s && s.url));
+    });
+    urls.forEach(function (u) {
+      try {
+        const hn = new URL(u).hostname.replace(/^www\./, "");
+        const parts = hn.split(".");
+        if (parts.length < 2) return;
+        const base = parts.slice(-2).join(".");
+        if (base && out.indexOf(base) < 0) out.push(base);
+      } catch (e) {}
+    });
+  };
+  push(video);
+  push(audio);
+  return out;
+}
+
 async function downloadMedia(m) {
   if (!m) return;
   const show = (msg) => {
@@ -1583,6 +1611,10 @@ async function downloadMedia(m) {
         show("B 站：解析 dash…");
         const bili = await YTDash.fromBilibili(m.playurl, { qn: 80 });
 
+        // 从真实分片 URL 提取 CDN 域名，喂给 DNR Referer 规则（B 站分片域名会轮换，
+        // 只写死默认域会漏 → 漏掉的域名没注入 Referer → bilivideo 返回 403）。
+        const biliHosts = collectRepHosts(bili.video, bili.audio);
+
         // 1) 优先后台下载（offscreen + DNR 注入 Referer）：弹窗和页面都可以关闭
         let bgOk = false;
         try {
@@ -1590,6 +1622,7 @@ async function downloadMedia(m) {
             type: "BILI_BG_DOWNLOAD",
             video: bili.video,
             audio: bili.audio || null,
+            hosts: biliHosts,
             name: base + ".mp4"
           });
           if (resp && resp.ok) {
