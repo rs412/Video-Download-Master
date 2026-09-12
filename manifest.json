@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Video Download Master for YouTube",
-  "version": "26.9.12.9",
+  "version": "26.9.12.10",
   "description": "从 YouTube 视频页提取并下载视频/音频流（合并与自适应格式）。",
   "permissions": ["downloads", "storage", "activeTab", "offscreen", "scripting", "declarativeNetRequest", "webRequest"],
   "background": { "service_worker": "background.js" },

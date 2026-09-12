@@ -1332,6 +1332,16 @@ async function loadGeneric(tab) {
   }
   tqEl.classList.add("hidden");
 
+  // 优酷：全片 HLS 同样被 CDN 鉴权拒绝（预告/试看能下但内容不对），认怂
+  const ykEl = document.getElementById("youku");
+  if (isYouku()) {
+    ykEl.classList.remove("hidden");
+    state.media = [];
+    $list.innerHTML = "";
+    return;
+  }
+  ykEl.classList.add("hidden");
+
   const bar = $("srcbar");
   bar.classList.remove("hidden");
   bar.className = state.media.length ? "srcbar" : "srcbar warn";
@@ -1386,6 +1396,11 @@ function isIqiyi() {
 function isTencent() {
   const h = String((state.page && state.page.host) || "").replace(/^www\./, "").toLowerCase();
   return /(^|\.)qq\.com$/.test(h) && /v\.qq\.com/.test(String(state.page && state.page.url) || "");
+}
+
+function isYouku() {
+  const h = String((state.page && state.page.host) || "").replace(/^www\./, "").toLowerCase();
+  return /(^|\.)youku\.com$/.test(h);
 }
 
 function renderMediaList() {

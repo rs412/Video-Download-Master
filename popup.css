@@ -160,7 +160,7 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
   font-size: 12px;
   flex: 0 0 auto;
 }
-#tencent.tq-card {
+#tencent.tq-card, #youku.tq-card {
   flex-direction: column;
   align-items: center;
   text-align: center;
@@ -169,7 +169,7 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
   border: 1px solid #d0e1ff;
   box-shadow: 0 4px 14px rgba(0, 82, 217, 0.10);
 }
-#tencent .tq-icon {
+#tencent .tq-icon, #youku .tq-icon {
   width: 46px;
   height: 46px;
   border-radius: 50%;
@@ -181,18 +181,18 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
   margin-bottom: 12px;
   box-shadow: 0 4px 14px rgba(0, 82, 217, 0.28);
 }
-#tencent .tq-icon svg {
+#tencent .tq-icon svg, #youku .tq-icon svg {
   width: 24px;
   height: 24px;
   opacity: 0.95;
 }
-#tencent .tq-title {
+#tencent .tq-title, #youku .tq-title {
   font-size: 15px;
   font-weight: 700;
   color: #0a2a6e;
   margin-bottom: 4px;
 }
-#tencent .tq-msg {
+#tencent .tq-msg, #youku .tq-msg {
   font-size: 12px;
   color: #4a6bb3;
   font-weight: 500;
