@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Video Download Master",
-  "version": "26.9.12.15",
+  "version": "26.9.12.16",
   "description": "视频嗅探与下载扩展：支持部分网站视频的嗅探与下载（合并与自适应格式）。",
   "permissions": ["downloads", "storage", "activeTab", "offscreen", "scripting", "declarativeNetRequest", "webRequest"],
   "background": { "service_worker": "background.js" },

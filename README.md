@@ -8,7 +8,7 @@
 
 ## 功能特性
 
-- **多站点支持**：YouTube、B 站、爱奇艺等主流视频站的一键嗅探与下载。
+- **多站点支持**：部分主流视频站的一键嗅探与下载。
 - **格式合并**：自动合并分离的视频流与音频流为单个 MP4 文件。
 - **自适应格式**：支持 DASH / HLS（含 AES-128 加密 HLS 解密）等自适应流。
 - **字幕 / 封面 / 元数据**：可导出 SRT / VTT / LRC / TXT 字幕、封面图与 `metadata.json`。
@@ -39,11 +39,6 @@
 3. 点击 **「加载解压缩的扩展」**，选择本仓库根目录（含 `manifest.json` 的文件夹）。
 4. 打开目标视频页，点击工具栏扩展图标即可使用。
 
-### 应用商店（待上架）
-
-- Microsoft Edge Add-ons：计划中。
-- Chrome Web Store：计划中。
-
 ---
 
 ## 隐私说明
@@ -72,8 +67,8 @@
 
 ## 已知限制
 
-- 受站点反爬 / 鉴权策略影响，部分加密或签名分片可能无法下载（见上表）。
-- YouTube 的 PO Token 限制可能导致个别格式被标记不可用（已在界面置灰提示）。
+- 受站点反爬 / 鉴权策略影响，部分加密或签名分片可能无法下载（视具体站点而定）。
+- 部分站点采用 PO Token 等反爬机制，可能导致个别格式被标记不可用（已在界面置灰提示）。
 - 扩展依赖站点页面结构，站点改版可能导致嗅探暂时失效，需等待扩展更新。
 
 ---
@@ -86,10 +81,10 @@ video-download-master/
 ├── popup.html / popup.css / popup.js   # 弹出面板 UI 与逻辑
 ├── background.js          # Service Worker：offscreen 合并、Referer 伪装、嗅探缓存
 ├── content.js / media-main.js          # 隔离世界 / 主世界注入
-├── main.js                # YouTube InnerTube 解析（主世界）
-├── lib/                   # 各站点解析器（dash / hls / iqiyi / subs / clients / parse / merge）
+├── main.js                # 主世界视频源解析（含播放器签名求解）
+├── lib/                   # 各站点解析器（dash / hls / 第三方平台 / subs / clients / parse / merge）
 ├── offscreen/             # 后台合并音视频为单个 mp4
-├── sandbox.html / sandbox.js           # YouTube 播放器签名求解沙箱
+├── sandbox.html / sandbox.js           # 播放器签名求解沙箱（部分站点需要）
 ├── vendor/                # 第三方依赖（yt.solver.core.js / mediabunny / meriyah / astring）
 └── icons/                 # 扩展图标（16 / 48 / 128）
 ```
