@@ -88,9 +88,3 @@ video-download-master/
 ├── vendor/                # 第三方依赖（yt.solver.core.js / mediabunny / meriyah / astring）
 └── icons/                 # 扩展图标（16 / 48 / 128）
 ```
-
----
-
-## 版本说明
-
-版本号采用 `年.月.日.小版本` 形式（例如 `26.9.12.13` = 2026-09-12 第 13 版）。
