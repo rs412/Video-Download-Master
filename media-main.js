@@ -130,6 +130,7 @@
   // URL → 在主世界用 omit 凭据并发下载（主世界即播放器网络环境，签名有效）→ 拼接 fmp4 存盘。
   // 不依赖播放进度，点一下直接下完；绕开「自构造 URL 被标记 / 签名过期」。
   window.__vdm_resolve_playlist__ = function (cands) {
+    // cands: [{url, text?}, ...]  text 为页面已缓存的响应体，优先用它避免重新 fetch 签名失效
     cands = cands || [];
     function abs(u, base) { try { return new URL(u, base).href; } catch (e) { return u; } }
     function get(u, ms) {
@@ -142,6 +143,7 @@
           .catch(function (e) { if (t) clearTimeout(t); reject(e); });
       });
     }
+    function looksLikeM3u8(txt) { return /^#EXTM3U/.test((txt || "").trim()); }
     function parseMedia(txt, base) {
       var lines = txt.split(/\r?\n/), segs = [], map = null;
       for (var i = 0; i < lines.length; i++) {
@@ -177,30 +179,63 @@
         return { video: pm, audio: null };
       })();
     }
+    // 从一段文本里抽出所有 https?://... 链接，尝试当 m3u8 解析
+    async function tryLinksInText(text, sourceUrl) {
+      if (!text) return null;
+      var links = [];
+      var re = /https?:\/\/[^"'\s\\<>{}]+/ig, m;
+      while ((m = re.exec(text)) !== null) {
+        var u = m[0].replace(/[.,;:!?)\]}$]+$/, ""); // 去掉常见标点尾随
+        if (u.indexOf("http") === 0 && links.indexOf(u) < 0) links.push(u);
+      }
+      for (var i = 0; i < links.length; i++) {
+        try {
+          var t = await get(links[i], 8000);
+          if (looksLikeM3u8(t)) {
+            var pl = await parseAsync(t, links[i]);
+            if (pl.video && pl.video.segs.length) return { pl: pl, via: "link-in:" + sourceUrl };
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
     return (async function () {
-      var tryList = cands.slice().sort(function (a, b) { return (/\.m3u8/i.test(b) ? 1 : 0) - (/\.m3u8/i.test(a) ? 1 : 0); });
-      for (var n = 0; n < tryList.length; n++) {
+      // 阶段 1：优先用缓存 text 直接解析（不重新 fetch，最可能成功）
+      for (var n = 0; n < cands.length; n++) {
+        var c = cands[n] || {};
+        if (c.text && looksLikeM3u8(c.text)) {
+          try {
+            var pl = await parseAsync(c.text, c.url);
+            if (pl.video && pl.video.segs.length) return { ok: true, video: pl.video, audio: pl.audio, via: "cache:" + c.url };
+          } catch (e) {}
+        }
+      }
+      // 阶段 2：重新 fetch 候选 URL（有 .m3u8 字样的优先）
+      var tryList = cands.slice().sort(function (a, b) {
+        var pa = /\.m3u8|m3u8|playlist|manifest/i.test(a.url || "");
+        var pb = /\.m3u8|m3u8|playlist|manifest/i.test(b.url || "");
+        return (pb ? 1 : 0) - (pa ? 1 : 0);
+      });
+      for (var n2 = 0; n2 < tryList.length; n2++) {
         try {
-          var txt = await get(tryList[n], 8000);
-          if (/^#EXTM3U/.test(txt.trim())) {
-            var pl = await parseAsync(txt, tryList[n]);
-            if (pl.video && pl.video.segs.length) return { ok: true, video: pl.video, audio: pl.audio, via: "m3u8:" + tryList[n] };
+          var txt = await get(tryList[n2].url, 8000);
+          if (looksLikeM3u8(txt)) {
+            var pl2 = await parseAsync(txt, tryList[n2].url);
+            if (pl2.video && pl2.video.segs.length) return { ok: true, video: pl2.video, audio: pl2.audio, via: "m3u8:" + tryList[n2].url };
           }
         } catch (e) {}
       }
-      // 回退：在候选响应体里搜 .m3u8 链接（腾讯常把清单藏在 vinfo_proxy 的 JSON 里）
+      // 阶段 3：在缓存 text / fetch 到的响应体里搜所有 https?:// 链接（不限 .m3u8 扩展名）
       for (var m = 0; m < cands.length; m++) {
-        try {
-          var body = await get(cands[m], 8000);
-          var mm = body.match(/https?:\/\/[^"'\s\\]+?\.m3u8[^"'\s\\]*/i);
-          if (mm) {
-            var mt = await get(mm[0], 8000);
-            var mp = await parseAsync(mt, mm[0]);
-            if (mp.video && mp.video.segs.length) return { ok: true, video: mp.video, audio: mp.audio, via: "json:" + mm[0] };
-          }
-        } catch (e) {}
+        var c2 = cands[m] || {};
+        var body = c2.text;
+        if (!body) {
+          try { body = await get(c2.url, 8000); } catch (e) { continue; }
+        }
+        var found = await tryLinksInText(body, c2.url);
+        if (found) return { ok: true, video: found.pl.video, audio: found.pl.audio, via: found.via };
       }
-      return { ok: false, error: "候选里未找到 m3u8（请确认视频已开始播放并加载）" };
+      return { ok: false, error: "候选里未找到有效 m3u8 清单（请确认视频已开始播放并加载，或改用「边播边存」兜底）" };
     })();
   };
 
@@ -209,18 +244,43 @@
       if (!track) return [];
       return (track.map ? [track.map].concat(track.segs) : track.segs.slice());
     }
+    function fetchOne(u, ms) {
+      return new Promise(function (resolve, reject) {
+        var c = ("AbortController" in window) ? new AbortController() : null;
+        var t = c ? setTimeout(function () { try { c.abort(); } catch (e) {} }, ms || 15000) : null;
+        fetch(u, { credentials: "omit", referrer: location.href, signal: c ? c.signal : undefined })
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+          .then(function (b) { if (t) clearTimeout(t); if (!b || !b.byteLength) throw new Error("empty"); resolve(b); })
+          .catch(function (e) { if (t) clearTimeout(t); reject(e); });
+      });
+    }
     function dlTrack(track, thread, tag) {
       var segs = fullList(track);
       return new Promise(function (resolve) {
         var bufs = new Array(segs.length), done = 0, fails = 0, i = 0, last = Date.now();
-        function prog() { var now = Date.now(); if (now - last > 500) { last = now; try { chrome.runtime.sendMessage({ type: "VM_SE_MSE_PROG", size: 0, tracks: 1, complete: false, direct: tag + " " + done + "/" + segs.length }); } catch (e) {} } }
-        function worker() {
-          if (i >= segs.length) { if (done + fails >= segs.length) resolve({ bufs: bufs, done: done, total: segs.length }); return; }
-          var my = i++;
-          fetch(segs[my], { credentials: "omit", referrer: location.href })
-            .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+        var stop = false;
+        function prog() {
+          var now = Date.now();
+          if (now - last > 600) {
+            last = now;
+            try { chrome.runtime.sendMessage({ type: "VM_SE_MSE_PROG", size: 0, tracks: 1, complete: false, direct: tag + " " + done + "/" + segs.length + (fails ? " 失败" + fails : "") }); } catch (e) {}
+          }
+        }
+        function fetchWithRetry(my, retries) {
+          fetchOne(segs[my], 15000)
             .then(function (b) { bufs[my] = b; done++; prog(); worker(); })
-            .catch(function (e) { fails++; prog(); worker(); });
+            .catch(function (e) {
+              if ((retries || 0) < 2) { setTimeout(function () { fetchWithRetry(my, (retries || 0) + 1); }, 400); return; }
+              fails++; bufs[my] = null; prog(); worker();
+            });
+        }
+        function worker() {
+          if (stop) return;
+          if (i >= segs.length) { if (done + fails >= segs.length) { stop = true; resolve({ bufs: bufs, done: done, total: segs.length, fails: fails }); } return; }
+          // 连续失败过多则提前收尾，避免空转
+          if (fails > 0 && fails >= Math.max(5, Math.floor(done * 0.1) + 3)) { stop = true; resolve({ bufs: bufs, done: done, total: segs.length, fails: fails }); return; }
+          var my = i++;
+          fetchWithRetry(my, 0);
         }
         var t = Math.min(thread || 8, segs.length) || 1;
         for (var k = 0; k < t; k++) worker();
@@ -231,10 +291,12 @@
       var files = [];
       if (playlist.video && playlist.video.segs.length) {
         var rv = await dlTrack(playlist.video, 8, "视频");
+        if (rv.done < rv.total * 0.5) throw new Error("视频轨下载失败过多（" + rv.fails + "/" + rv.total + "），请刷新后重试或改用「边播边存」");
         files.push({ blob: new Blob(rv.bufs.filter(Boolean), { type: "video/mp4" }), name: name + ".mp4", done: rv.done, total: rv.total });
       }
       if (playlist.audio && playlist.audio.segs.length) {
         var ra = await dlTrack(playlist.audio, 8, "音频");
+        if (ra.done < ra.total * 0.5) throw new Error("音频轨下载失败过多（" + ra.fails + "/" + ra.total + "）");
         files.push({ blob: new Blob(ra.bufs.filter(Boolean), { type: "audio/mp4" }), name: name + "_音频.m4a", done: ra.done, total: ra.total });
       }
       files.forEach(function (it) {

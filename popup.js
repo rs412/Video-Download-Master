@@ -2799,23 +2799,31 @@ async function doTencentDownload() {
   }
 }
 
-// 收集「直接下载」所需的候选清单 URL：webRequest 会话 + 页面缓存响应体 + 资源时序表。
-// 按"最像有效清单"排序并截断，避免逐个拉大文件浪费时间。
+// 收集「直接下载」所需的候选清单：webRequest 会话 + 页面缓存响应体 + 资源时序表。
+// 返回 [{url, text?}]，text 来自页面已缓存的响应体（避免重新 fetch 时签名失效）。
 async function tencentCollectCandidates(tabId) {
-  const set = new Set();
-  const push = (u) => { if (u && /^https?:/i.test(u)) set.add(u); };
-  try {
-    const wr = await chrome.runtime.sendMessage({ type: "GET_WR_MEDIA", tabId: tabId });
-    if (wr && wr.ok && Array.isArray(wr.items)) for (const it of wr.items) if (it && it.url) push(it.url);
-  } catch (e) {}
+  const map = new Map(); // url -> {url, text}
+  const push = (u, text) => {
+    if (!u || !/^https?:/i.test(u)) return;
+    const ex = map.get(u);
+    if (ex) { if (text && !ex.text) ex.text = text; return; }
+    map.set(u, { url: u, text: text || null });
+  };
+  // 1) 页面缓存响应体（优先级最高：可能含有效 #EXTM3U 内容）
   try {
     const pr = await chrome.scripting.executeScript({
       target: { tabId }, world: "MAIN",
-      func: () => (window.__vdm_hls_body__ || []).map(function (b) { return b.url; })
+      func: () => (window.__vdm_hls_body__ || []).map(function (b) { return { url: b.url, text: b.text || null }; })
     });
     const arr = JSON.parse((pr && pr[0] && pr[0].result) || "[]") || [];
-    arr.forEach(push);
+    arr.forEach(x => push(x.url, x.text));
   } catch (e) {}
+  // 2) webRequest 会话记录（URL 全量，但无响应体）
+  try {
+    const wr = await chrome.runtime.sendMessage({ type: "GET_WR_MEDIA", tabId: tabId });
+    if (wr && wr.ok && Array.isArray(wr.items)) for (const it of wr.items) if (it && it.url) push(it.url, null);
+  } catch (e) {}
+  // 3) 资源时序表：放宽到腾讯 CDN 特征，不再只认 m3u8 字样
   try {
     const pr2 = await chrome.scripting.executeScript({
       target: { tabId }, world: "MAIN",
@@ -2825,16 +2833,19 @@ async function tencentCollectCandidates(tabId) {
         for (const e of es) {
           const u = e.name;
           if (/m3u8|manifest|playlist|\.mpd|getvinfo|vinfo|getinfo|hls|dash/i.test(u)) out.push(u);
+          // 腾讯分片/清单域名特征（无 .m3u8 字样时兜底）
+          else if (/smtcdns|tc\.qq\.com|moviets|myqcloud|qcloudcdn|vd3\.\.lb\.sj\.qq\.com|v\.qq\.com/i.test(u)) out.push(u);
         }
         return out;
       }
     });
     const arr2 = JSON.parse((pr2 && pr2[0] && pr2[0].result) || "[]") || [];
-    arr2.forEach(push);
+    arr2.forEach(u => push(u, null));
   } catch (e) {}
-  const list = Array.from(set);
-  const pri = (u) => {
+  const list = Array.from(map.values());
+  const pri = (u, hasText) => {
     let s = 0;
+    if (hasText) s += 150; // 有缓存响应体最优先
     if (/m3u8|playlist|manifest/i.test(u)) s += 100;
     if (/getvinfo|vinfo|getinfo/i.test(u)) s += 60;
     if (/smtcdns|tc\.qq\.com|moviets|myqcloud|qcloudcdn/i.test(u)) s += 40;
@@ -2842,7 +2853,7 @@ async function tencentCollectCandidates(tabId) {
     if (/\.(js|css|png|json)(\?|#|$)/i.test(u)) s -= 50;
     return s;
   };
-  list.sort((a, b) => pri(b) - pri(a));
+  list.sort((a, b) => pri(b.url, !!b.text) - pri(a.url, !!a.text));
   return list.slice(0, 40);
 }
 
