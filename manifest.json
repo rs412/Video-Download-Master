@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Video Download Master",
-  "version": "26.9.12.11",
+  "version": "26.9.12.12",
   "description": "支持 YouTube / B 站 / 爱奇艺 / 优酷 / 腾讯 等视频站的媒体嗅探与下载（合并与自适应格式）。",
   "permissions": ["downloads", "storage", "activeTab", "offscreen", "scripting", "declarativeNetRequest", "webRequest"],
   "background": { "service_worker": "background.js" },

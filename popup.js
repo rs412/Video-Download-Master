@@ -1315,9 +1315,7 @@ async function loadGeneric(tab) {
     bar.classList.remove("hidden");
     bar.className = "srcbar";
     bar.innerHTML = '<span class="src-dot"></span>爱奇艺 · 请用下方「获取并下载（最高画质）」按钮';
-    $list.innerHTML =
-      '<div class="empty">爱奇艺分片带签名鉴权，嗅探到的直链无法直接下载<br />' +
-      "<small>点下方绿色按钮，由扩展用 tvid 换取可用片源</small></div>";
+    $list.innerHTML = ""; // 清空 list 区：srcbar + iqiyi 区块已说明怎么操作，不在这里再重复
     return;
   }
   iqEl.classList.add("hidden");
