@@ -153,56 +153,5 @@
     );
   }
 
-  // tsToMp4(tsBlob, onStage) → Blob (video/mp4)
-  // 单个「混流」TS（同一码流里同时含视频+音频 PID，腾讯/爱奇艺 HLS 均如此）转封装为 mp4。
-  // 等价于 ffmpeg -i in.ts -c copy out.mp4，纯 remux 不重新编码。
-  async function tsToMp4(tsBlob, onStage) {
-    const M = await ready();
-    const {
-      Input, Output, ALL_FORMATS, Mp4OutputFormat, BufferTarget,
-      BlobSource, EncodedVideoPacketSource, EncodedAudioPacketSource
-    } = M;
-    const report = (p, msg) => { if (onStage) onStage(p, msg); };
-
-    const input = new Input({ formats: ALL_FORMATS, source: new BlobSource(tsBlob) });
-    const vTrack = await input.getPrimaryVideoTrack();
-    if (!vTrack) throw new Error("TS 中未找到视频轨");
-    let aTrack = null;
-    try { aTrack = await input.getPrimaryAudioTrack(); } catch (e) { aTrack = null; }
-    const vCodec = await codecOf(vTrack);
-    const vConfig = await vTrack.getDecoderConfig();
-
-    const output = new Output({
-      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-      target: new BufferTarget()
-    });
-    const vSource = new EncodedVideoPacketSource(vCodec);
-    output.addVideoTrack(vSource);
-
-    let aSource = null, aConfig = null;
-    if (aTrack) {
-      const aCodec = await codecOf(aTrack);
-      aConfig = await aTrack.getDecoderConfig();
-      aSource = new EncodedAudioPacketSource(aCodec);
-      output.addAudioTrack(aSource);
-    }
-
-    await output.start();
-    report(0.05, "封装视频轨…");
-    await pumpPackets(vTrack, vSource, vConfig, (p) =>
-      report(0.05 + (aTrack ? 0.82 : 0.93) * p, "封装视频轨 " + Math.round(p * 100) + "%…"));
-    if (aTrack && aSource) {
-      report(0.9, "封装音轨…");
-      await pumpPackets(aTrack, aSource, aConfig, (p) =>
-        report(0.9 + 0.08 * p, "封装音轨 " + Math.round(p * 100) + "%…"));
-    }
-    report(0.98, "生成 mp4 容器…");
-    await output.finalize();
-    report(1, "完成");
-    const buffer = output.target.buffer;
-    if (!buffer || !buffer.byteLength) throw new Error("转封装结果为空");
-    return new Blob([buffer], { type: "video/mp4" });
-  }
-
-  global.YTMerge = { mergeAv: mergeAv, mergeBlobs: mergeBlobs, tsToMp4: tsToMp4, ready: ready };
+  global.YTMerge = { mergeAv: mergeAv, mergeBlobs: mergeBlobs, ready: ready };
 })(window);

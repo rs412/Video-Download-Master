@@ -114,6 +114,66 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,.07);
 }
+.iq-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.iq-logo {
+  font-weight: 700;
+  color: #00be06;
+  background: #eafbe7;
+  border: 1px solid #b6eaaf;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+#iqiyi .qbtn.primary { margin-left: auto; }
+#iqiyi .iq-status {
+  margin: 0 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f3f5f8;
+  color: #3a3f47;
+}
+#iqiyi .iq-status.err { background: #fdecec; color: #c0392b; }
+#iqiyi .iq-status.ok { background: #e9fbef; color: #1e7e34; }
+.tq-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.tq-logo {
+  font-weight: 700;
+  color: #0052d9;
+  background: #e8f0ff;
+  border: 1px solid #b9d2ff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+#tencent .qbtn.primary { margin-left: auto; }
+#tencent .tq-status {
+  margin: 0 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f3f5f8;
+  color: #3a3f47;
+}
+#tencent .tq-status.err { background: #fdecec; color: #c0392b; }
+#tencent .tq-status.ok { background: #e9fbef; color: #1e7e34; }
 #thumb {
   flex: 0 0 auto;
   width: 96px; height: 54px;
@@ -240,6 +300,15 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
 }
 .badge.audio { background: linear-gradient(135deg, #7c3aed, #a855f7); }
 .badge.merged { background: linear-gradient(135deg, #059669, #10b981); }
+.badge.bili { background: linear-gradient(135deg, #fb7299, #ff9ab8); color: #fff; font-weight: 700; }
+/* 通用站点媒体类型徽标 */
+.badge.hls  { background: linear-gradient(135deg, #e6002d, #ff5c7a); }
+.badge.dash { background: linear-gradient(135deg, #0ea5e9, #22d3ee); }
+.badge.video{ background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #3a2503; }
+.badge.m4s, .badge.ts { background: linear-gradient(135deg, #6b7280, #9ca3af); }
+.badge.other{ background: linear-gradient(135deg, #4b5563, #6b7280); }
+.row-top .badge { flex: 0 0 auto; }
+.row-top { word-break: break-all; }
 .mini {
   font-size: 10px;
   font-weight: 600;
@@ -257,6 +326,24 @@ header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; 
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.row-url {
+  margin-top: 3px;
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bili-hidden-note {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 6px;
+  text-align: center;
 }
 .row-actions { flex: 0 0 auto; display: flex; gap: 5px; }
 .dl, .icon-btn {
@@ -366,6 +453,15 @@ summary:hover { background: #fafbfc; }
   background: linear-gradient(90deg, #ff0033, #ff6b3d);
   width: 0;
   transition: width .3s;
+}
+/* 后台任务的阶段说明（分片数 / 已收体积），跟在进度条下面一行 */
+.pg-stage {
+  padding: 0 10px 8px;
+  margin-top: -2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #8a93a0;
+  word-break: break-all;
 }
 
 /* ---------- 页脚 ---------- */

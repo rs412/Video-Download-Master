@@ -8,7 +8,7 @@
   <header>
     <div class="brand">
       <span class="logo">&#9654;</span>
-      <h1>YouTube 下载器</h1>
+      <h1>Video Download Master</h1>
     </div>
     <button id="retry" type="button" title="重新解析当前视频">&#8635;</button>
   </header>
@@ -30,6 +30,32 @@
   </div>
 
   <div id="srcbar" class="hidden"></div>
+
+  <section id="iqiyi" class="card hidden">
+    <div class="iq-head">
+      <span class="iq-logo">爱奇艺</span>
+      <button id="iqBtn" class="qbtn primary" type="button">获取并下载（最高画质）</button>
+    </div>
+    <div id="iqStatus" class="iq-status hidden"></div>
+  </section>
+
+  <section id="tencent" class="card hidden">
+    <div class="tq-head">
+      <span class="tq-logo">腾讯视频</span>
+      <button id="tqBtn" class="qbtn primary" type="button">⚡ 直接下载（推荐）</button>
+    </div>
+    <div id="tqStatus" class="tq-status hidden"></div>
+    <div class="tq-rec">
+      <div id="tqRecInfo" class="tq-rec-info">边播边存（兜底）：尚未捕获</div>
+      <div class="btns">
+        <button id="tqSniffBtn" class="qbtn" type="button">嗅探兜底</button>
+        <button id="tqSeekBtn" class="qbtn" type="button">⏩ 快进录制</button>
+        <button id="tqSaveBtn" class="qbtn" type="button" disabled>💾 保存录制</button>
+      </div>
+      <small>「直接下载」在主世界用播放器会话重新拉取有效签名清单 → 8 并发下全片（视频.mp4 + 音频.m4a），最快最稳。<br>
+      若直接下载失败（清单 URL 也被标记），可用「边播边存」兜底：播放器缓冲字节录制，绕开分片签名过期——先正常播放让缓冲积累，长视频点「⏩ 快进录制」拖到片尾，再「💾 保存录制」。</small>
+    </div>
+  </section>
 
   <nav id="tabs" class="hidden">
     <button class="tab active" data-tab="all">全部</button>
@@ -99,6 +125,8 @@
   <script src="lib/subs.js"></script>
   <script src="lib/clients.js"></script>
   <script src="lib/hls.js"></script>
+  <script src="lib/dash.js"></script>
+  <script src="lib/iqiyi.js"></script>
   <script src="lib/merge.js"></script>
   <script type="module" src="vendor/mediabunny-global.js"></script>
   <script src="popup.js"></script>
