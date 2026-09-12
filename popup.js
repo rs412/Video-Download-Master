@@ -1521,20 +1521,37 @@ async function downloadMedia(m) {
       const info = await YTHls.resolveBestVariant(m.url);
       // 第二次：把分片/key 真实 host 一并加上（爱奇艺/优酷等 CDN 经常跨 host）
       await armMediaRefererRule(m, info.hosts);
+
+      // 加密 HLS（优酷等）必须走页面主世界：扩展页 fetch 不带站点 cookie，
+      // CDN 会拒绝或返回空体，导致拼出「片段」。主世界带 cookie + referrer，
+      // 且同样可用 Web Crypto 做 AES-128 解密。
+      if (info.keyInfo) {
+        show("加密 HLS：转由页面下载并解密（带站点 cookie）…");
+        const res = await mainWorldDownloadTrack(
+          { init: info.initUrl, segments: info.segments, mime: "video/mp4", hlsKey: info.keyInfo, mediaSequence: info.mediaSequence },
+          "video", show, true);
+        if (!res || !res.blobUrl) throw new Error("加密 HLS 页面下载失败");
+        await saveBlobUrl(res.blobUrl, base + ".mp4", res.size);
+        toast("已保存加密 HLS 视频：" + base + ".mp4");
+        setErr(""); resetErrStyle();
+        return;
+      }
+
       let blob;
       try {
         blob = await YTHls.download(info, (d, t) => {
           show("HLS 下载：" + Math.round((d / t) * 100) + "%（" + d + "/" + t + " 段）—— 请保持弹窗打开");
         });
       } catch (e) {
-        // 加密 HLS 主世界回退也无法解密，直接报错避免用户拿到密文片段
-        if (info.keyInfo) {
-          throw new Error("加密 HLS 下载失败：" + ((e && e.message) || e));
-        }
         // 扩展页 fetch 被 CDN 拒绝 → 回退页面主世界（HLS 的 init + segments 同样适用）
         console.warn("[vdm] HLS 扩展页下载失败，回退页面主世界：", e && e.message);
-        blob = await mainWorldDownloadTrack(
-          { init: info.initUrl, segments: info.segments, mime: "video/mp4" }, "video", show);
+        const res = await mainWorldDownloadTrack(
+          { init: info.initUrl, segments: info.segments, mime: "video/mp4" }, "video", show, true);
+        if (!res || !res.blobUrl) throw new Error("HLS 页面下载失败");
+        await saveBlobUrl(res.blobUrl, base + ".mp4", res.size);
+        toast("已保存 HLS 视频：" + base + ".mp4");
+        setErr(""); resetErrStyle();
+        return;
       }
       saveBlob(blob, base + ".mp4");
       toast("已保存 HLS 视频：" + base + ".mp4");
@@ -1924,13 +1941,19 @@ async function mainWorldDownloadTrack(rep, kind, show, asUrl) {
   const segments = (rep && rep.segments ? rep.segments : []).map(norm);
   if (!initSpec && !segments.length) throw new Error("该轨道没有可下载的分片");
   if (show) show("改用页面下载" + (kind === "audio" ? "音轨" : "视频") + "…");
-  const resp = await chrome.tabs.sendMessage(state.tabId, {
+  const msg = {
     type: "MAIN_TRACK_DOWNLOAD",
     kind: kind || "video",
     initSpec: initSpec,
     segments: segments,
     mime: (rep && rep.mime) || (kind === "audio" ? "audio/mp4" : "video/mp4")
-  });
+  };
+  // HLS AES-128 解密参数：主世界自己下载 key 并逐段解密
+  if (rep && rep.hlsKey) {
+    msg.hlsKey = rep.hlsKey;
+    msg.mediaSequence = rep.mediaSequence || 0;
+  }
+  const resp = await chrome.tabs.sendMessage(state.tabId, msg);
   if (!resp || !resp.ok || !resp.blobUrl) {
     throw new Error((resp && resp.error) || "页面下载失败");
   }
@@ -1953,6 +1976,34 @@ function saveBlob(blob, name) {
   chrome.downloads.download({ url: url, filename: name, saveAs: !!state.settings.askPath }, () => {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     if (chrome.runtime.lastError) toast("下载失败：" + chrome.runtime.lastError.message);
+  });
+}
+
+function saveBlobUrl(url, name, sizeHint) {
+  return new Promise((resolve) => {
+    chrome.downloads.download({ url: url, filename: name, saveAs: !!state.settings.askPath }, (dlId) => {
+      if (chrome.runtime.lastError) {
+        toast("下载失败：" + chrome.runtime.lastError.message);
+        resolve(false);
+        return;
+      }
+      // 监听下载完成/失败，完成后释放 blob URL
+      const onChg = (delta) => {
+        if (delta.id !== dlId) return;
+        if (delta.state && (delta.state.current === "complete" || delta.state.current === "interrupted")) {
+          chrome.downloads.onChanged.removeListener(onChg);
+          URL.revokeObjectURL(url);
+          resolve(delta.state.current === "complete");
+        }
+      };
+      chrome.downloads.onChanged.addListener(onChg);
+      // 保险：60s 后无论是否完成都释放
+      setTimeout(() => {
+        chrome.downloads.onChanged.removeListener(onChg);
+        URL.revokeObjectURL(url);
+        resolve(true);
+      }, 60000);
+    });
   });
 }
 

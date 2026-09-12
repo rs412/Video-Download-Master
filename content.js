@@ -218,7 +218,9 @@
         __vdm_bili_dash_track_req__: true,
         __vdm_id__: id,
         initSpec: msg.initSpec || null,
-        segments: msg.segments || []
+        segments: msg.segments || [],
+        hlsKey: msg.hlsKey || null,
+        mediaSequence: msg.mediaSequence || 0
       }, "*");
       return true;
     }

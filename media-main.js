@@ -674,8 +674,9 @@
       // 原因：bilivideo CDN 不响应非 bilibili.com 来源的请求，
       //       popup.js 直接 fetch → 403；必须走 page origin（带 SESSDATA + referrer）
       // noCreds: 腾讯等 CDN 返回 ACAO:*，带凭据的跨域 fetch 会被 CORS 拦截 → 需 omit（与播放器一致）
+      // hlsKey: 优酷等加密 HLS —— 主世界下载 key 并对每段做 AES-128 解密
       var jobId = d.__vdm_id__;
-      downloadDashTrack(d.initSpec || null, d.segments || [], jobId, !!d.noCreds, !!d.rangeChain)
+      downloadDashTrack(d.initSpec || null, d.segments || [], jobId, !!d.noCreds, !!d.rangeChain, d.hlsKey || null, d.mediaSequence || 0)
         .then(function (tally) {
           // tally：{ok, fail, total}——部分成功时让上层知道真实片数，避免静默产出残片
           window.postMessage({
@@ -832,16 +833,43 @@
     return out.buffer;
   }
 
+  // HLS AES-128 解密辅助
+  function hexToBuf(hex) {
+    var bytes = new Uint8Array(hex.length / 2);
+    for (var i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    return bytes;
+  }
+  function seqToIv(seq) {
+    var buf = new Uint8Array(16);
+    var view = new DataView(buf.buffer);
+    view.setUint32(12, seq >>> 0, false);
+    return buf;
+  }
+
   // B 站 dash 视频/音轨逐段拉取（page origin 带 SESSDATA + referrer，bilivideo CDN 才能下到）
   // initSpec: null 或 {url, range:[a,b]}（fMP4 init 段）
   // segments:  [{url, range:[a,b]}] 或 [string]（单完整文件 URL，形态②）
   // jobId: 与 content.js 的 reqId 对应
+  // hlsKey: {method, url, ivHex} —— 若提供，则逐段用 AES-128 解密（优酷加密 HLS）
   // 流程：每片 fetch 完立刻 transferable ArrayBuffer 经 postMessage 推给 content.js，
   //       若任意一片 HTTP 非 2xx，抛错终止（content.js 收完所有已发片段后建 blob）
-  async function downloadDashTrack(initSpec, segments, jobId, noCreds, rangeChain) {
+  async function downloadDashTrack(initSpec, segments, jobId, noCreds, rangeChain, hlsKey, mediaSequence) {
     var total = (initSpec ? 1 : 0) + (segments ? segments.length : 0);
     if (!total) throw new Error("B 站 dash track 没有可下载段（init 与 segments 都为空）");
     var idx = 0; // 段序号（init 为 0，segments 从 1 起）
+
+    // HLS AES-128：先下载 key 并导入 Web Crypto
+    var cryptoKey = null, fixedIv = null;
+    if (hlsKey) {
+      if (hlsKey.method !== "AES-128") throw new Error("不支持的 HLS 加密方式：" + hlsKey.method);
+      var keyResp = await fetch(hlsKey.url, { credentials: noCreds ? "omit" : "include", referrer: location.href });
+      if (!keyResp.ok) throw new Error("HLS key 下载失败 HTTP " + keyResp.status);
+      var keyBuf = await keyResp.arrayBuffer();
+      if (keyBuf.byteLength !== 16) throw new Error("AES-128 key 长度异常：" + keyBuf.byteLength);
+      cryptoKey = await crypto.subtle.importKey("raw", keyBuf, { name: "AES-CBC" }, false, ["decrypt"]);
+      fixedIv = hlsKey.ivHex ? hexToBuf(hlsKey.ivHex) : null;
+    }
+
     function postProg(thisIdx, bytes, cl) {
       window.postMessage({
         __vdm_bili_dash_track_prog__: true, __vdm_id__: jobId,
@@ -985,6 +1013,16 @@
       }
       _failTally.ok++;
       _consecFail = 0;
+      // HLS 加密段：init 段不解密，媒体段逐段解密
+      if (cryptoKey) {
+        var segIdx = initSpec ? (idx - 1) : idx;
+        var iv = fixedIv || seqToIv((mediaSequence || 0) + segIdx);
+        try {
+          bufi = await crypto.subtle.decrypt({ name: "AES-CBC", iv: iv }, cryptoKey, bufi);
+        } catch (de) {
+          throw new Error("第 " + (segIdx + 1) + " 段 HLS 解密失败：" + String((de && de.message) || de));
+        }
+      }
       postPart(bufi, idx++);
       postProg(idx, bufi.byteLength, 0);
       await new Promise(function (rs) { setTimeout(rs, 60); }); // 节流，降低被限流概率
