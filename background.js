@@ -9,7 +9,6 @@ let _closeTimer = null;
 let _mergeBusy = false;
 let _biliJob = false; // 当前任务是 B 站后台下载（完成后要撤掉 DNR Referer 规则）
 let _iqiyiJob = false; // 当前任务是爱奇艺后台下载（完成后要撤掉 DNR Referer 规则）
-let _tqJob = false; // 当前任务是腾讯视频后台下载
 const REFERER_RULE_ID = 9901;
 
 // 通用「站点 CDN 伪装」：给**扩展自身**发出的 CDN 请求注入页面 Referer、去掉 Origin。
@@ -295,37 +294,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  // 腾讯视频后台下载：popup 已用 ckey 换到 m3u8 链 → 注入 DNR Referer 规则（通配 host）→
-  // offscreen 拉 m3u8 解析分片并逐片下载合并成完整 TS → 走 MERGE_SAVE 落盘。弹窗和页面都可关闭。
-  if (msg.type === "TENCENT_BG_DOWNLOAD") {
-    (async () => {
-      try {
-        if (_mergeBusy) {
-          sendResponse({ ok: false, error: "已有后台任务进行中，请等它完成" });
-          return;
-        }
-        await setRefererRule(msg.hosts || ["*"], msg.referer || "https://v.qq.com/");
-        await ensureOffscreen();
-        clearTimeout(_closeTimer);
-        _mergeBusy = true;
-        _tqJob = true;
-        chrome.runtime.sendMessage({
-          type: "TENCENT_BG_JOB",
-          manifestUrl: msg.manifestUrl,
-          segs: Array.isArray(msg.segs) ? msg.segs : null,
-          name: msg.name
-        }).catch(() => {});
-        sendResponse({ ok: true });
-      } catch (e) {
-        _mergeBusy = false;
-        _tqJob = false;
-        clearRefererRule();
-        sendResponse({ ok: false, error: String((e && e.message) || e) });
-      }
-    })();
-    return true;
-  }
-
   // offscreen 合并完成，blob URL 已就绪 → 由这里（有 downloads API）落盘
   if (msg.type === "MERGE_SAVE") {
     chrome.downloads.download(
@@ -334,7 +302,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (chrome.runtime.lastError || !dlId) {
           const err = (chrome.runtime.lastError && chrome.runtime.lastError.message) || "下载任务创建失败";
           _mergeBusy = false;
-          if (_biliJob || _iqiyiJob || _tqJob) { _biliJob = _iqiyiJob = _tqJob = false; clearRefererRule(); }
+          if (_biliJob || _iqiyiJob) { _biliJob = _iqiyiJob = false; clearRefererRule(); }
           chrome.runtime.sendMessage({ type: "MERGE_FAIL", error: err }).catch(() => {});
           closeOffscreen(500);
           return;
@@ -344,13 +312,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           if (d.state.current === "complete") {
             chrome.downloads.onChanged.removeListener(listener);
             _mergeBusy = false;
-            if (_biliJob || _iqiyiJob || _tqJob) { _biliJob = _iqiyiJob = _tqJob = false; clearRefererRule(); }
+            if (_biliJob || _iqiyiJob) { _biliJob = _iqiyiJob = false; clearRefererRule(); }
             chrome.runtime.sendMessage({ type: "MERGE_DONE", name: msg.name }).catch(() => {});
             closeOffscreen(1000);
           } else if (d.state.current === "interrupted") {
             chrome.downloads.onChanged.removeListener(listener);
             _mergeBusy = false;
-            if (_biliJob || _iqiyiJob || _tqJob) { _biliJob = _iqiyiJob = _tqJob = false; clearRefererRule(); }
+            if (_biliJob || _iqiyiJob) { _biliJob = _iqiyiJob = false; clearRefererRule(); }
             chrome.runtime.sendMessage({ type: "MERGE_FAIL", error: "文件保存中断" }).catch(() => {});
             closeOffscreen(500);
           }
@@ -364,7 +332,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // offscreen 出错 → 广播给 popup 并关闭释放资源
   if (msg.type === "MERGE_FAIL") {
     _mergeBusy = false;
-    if (_biliJob || _iqiyiJob || _tqJob) { _biliJob = _iqiyiJob = _tqJob = false; clearRefererRule(); }
+    if (_biliJob || _iqiyiJob) { _biliJob = _iqiyiJob = false; clearRefererRule(); }
     closeOffscreen(500);
   }
 
