@@ -1327,6 +1327,7 @@ async function loadGeneric(tab) {
   if (isTencent()) {
     tqEl.classList.remove("hidden");
     state.media = [];
+    $list.innerHTML = ""; // 清空通用嗅探列表（loadGeneric 写入的"嗅探页面媒体…"）
     return;
   }
   tqEl.classList.add("hidden");
