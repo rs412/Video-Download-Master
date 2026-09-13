@@ -1,5 +1,5 @@
 # Video Download Master
-
+![VDM](assets/social-1280x640.png)
 一款 Edge / Chrome 浏览器扩展（Manifest V3），用于嗅探并下载网页视频。
 
 > **仅用于你拥有版权或已获授权的内容。**
